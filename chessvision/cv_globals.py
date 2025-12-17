@@ -1,6 +1,10 @@
 import os
 
-CVROOT = os.getenv("CVROOT", os.path.dirname(__file__))
+# Get CVROOT - should point to the repository root, not the chessvision module
+CVROOT = os.getenv("CVROOT")
+if CVROOT is None:
+    # Default to parent directory of this file (go up one level from chessvision/ to repo root)
+    CVROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 compute_root = os.path.join(CVROOT, "computeroot/")
 data_root = os.path.join(CVROOT, "data/")

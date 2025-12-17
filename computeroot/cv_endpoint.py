@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 import os
+import sys
 import uuid
 from datetime import timedelta
 from functools import update_wrapper
@@ -28,8 +29,13 @@ app = Flask(__name__)
 
 class RequestFormatter(logging.Formatter):
     def format(self, record):
-        record.url = request.url
-        record.remote_addr = request.remote_addr
+        try:
+            record.url = request.url
+            record.remote_addr = request.remote_addr
+        except RuntimeError:
+            # Not in request context
+            record.url = "N/A"
+            record.remote_addr = "N/A"
         return super().format(record)
 
 formatter = RequestFormatter(
@@ -41,6 +47,9 @@ logger = logging.getLogger("chessvision")
 file_handler = logging.FileHandler("logs/cv_endpoint.log", "w")
 file_handler.setFormatter(formatter)
 stream_handler = logging.StreamHandler()
+# Use simple formatter for stream handler to avoid request context issues
+stream_formatter = logging.Formatter("[%(asctime)s] %(levelname)s: %(message)s")
+stream_handler.setFormatter(stream_formatter)
 logger.addHandler(stream_handler)
 logger.addHandler(file_handler)
 logger.setLevel(logging.DEBUG)
@@ -118,6 +127,14 @@ def read_image_from_b64(b64string):
 @crossdomain(origin='*')
 def predict_img():
     logger.info("CV-Algo invoked")
+    
+    # Check if models are loaded
+    if board_model is None or sq_model is None:
+        logger.error("Models not loaded - cannot process image")
+        return flask.Response(
+            response='{"error": "true", "message": "Model weights not loaded. Cannot process images."}',
+            status=503,
+            mimetype="application/json")
     
     #Host, User-Agent, Content-Length, Origin
     if flask.request.content_type == 'application/json':
@@ -332,7 +349,18 @@ def read_image_from_formdata():
 
 def load_models():
     #global sq_model, board_model
-
+    
+    import os
+    if not os.path.exists(cv_globals.square_weights) or not os.path.exists(cv_globals.board_weights):
+        logger.warning("="*60)
+        logger.warning("WARNING: Model weights not found!")
+        logger.warning(f"  Expected: {cv_globals.square_weights}")
+        logger.warning(f"  Expected: {cv_globals.board_weights}")
+        logger.warning("The application will start but cannot process images.")
+        logger.warning("See QUICKSTART_VI.md for instructions on getting weights.")
+        logger.warning("="*60)
+        return None, None
+    
     sq_model = load_classifier(weights=cv_globals.square_weights)
     board_model = load_extractor(weights=cv_globals.board_weights)
 
@@ -342,9 +370,18 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--local", action="store_true")
+    parser.add_argument("--demo", action="store_true", help="Run in demo mode without weights")
     args = parser.parse_args()
 
     port = 7777 if args.local else 8080
-    board_model, sq_model = load_models()
+    
+    if args.demo:
+        logger.warning("Running in DEMO mode - image processing will not work without model weights")
+        board_model, sq_model = None, None
+    else:
+        board_model, sq_model = load_models()
+        if board_model is None or sq_model is None:
+            logger.error("Cannot start without model weights. Use --demo flag to start in demo mode.")
+            sys.exit(1)
     
     app.run(host='0.0.0.0', port=port)
