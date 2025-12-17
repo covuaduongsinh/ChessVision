@@ -123,6 +123,23 @@ if [[ "$response" =~ ^[Yy]$ ]]; then
     echo -e "${YELLOW}Note: You can stop all servers by pressing Ctrl+C${NC}"
     echo ""
     
+    # Cleanup function to kill both servers
+    cleanup() {
+        echo ""
+        echo -e "${YELLOW}Stopping servers...${NC}"
+        if [ -n "$CV_PID" ]; then
+            kill $CV_PID 2>/dev/null
+        fi
+        if [ -n "$WEB_PID" ]; then
+            kill $WEB_PID 2>/dev/null
+        fi
+        echo -e "${GREEN}Servers stopped.${NC}"
+        exit 0
+    }
+    
+    # Trap Ctrl+C and call cleanup
+    trap cleanup SIGINT SIGTERM
+    
     # Start compute server in background
     cd "$CVROOT/computeroot"
     python3 cv_endpoint.py --local $DEMO_MODE &
