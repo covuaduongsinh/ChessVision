@@ -48,6 +48,7 @@ echo -e "${GREEN}All directories created.${NC}"
 
 # Check for model weights
 echo -e "${YELLOW}Checking for model weights...${NC}"
+DEMO_MODE=""
 if [ ! -f "$CVROOT/weights/best_classifier.hdf5" ] || [ ! -f "$CVROOT/weights/best_extractor.hdf5" ]; then
     echo -e "${RED}WARNING: Model weights not found!${NC}"
     echo -e "${YELLOW}The application requires trained model weights to function.${NC}"
@@ -59,8 +60,8 @@ if [ ! -f "$CVROOT/weights/best_classifier.hdf5" ] || [ ! -f "$CVROOT/weights/be
     echo -e "  2. Download pre-trained weights (if available)"
     echo -e "  3. Contact the repository maintainer for weights"
     echo ""
-    echo -e "${RED}Cannot start application without model weights.${NC}"
-    exit 1
+    echo -e "${YELLOW}The application can start in DEMO mode (without image processing).${NC}"
+    DEMO_MODE="--demo"
 else
     echo -e "${GREEN}Model weights found!${NC}"
 fi
@@ -72,8 +73,17 @@ if [ $? -eq 0 ]; then
     echo -e "${GREEN}All Python dependencies are installed.${NC}"
 else
     echo -e "${RED}Missing Python dependencies!${NC}"
-    echo -e "${YELLOW}Installing dependencies from requirements.txt...${NC}"
+    echo -e "${YELLOW}Installing dependencies and chessvision package...${NC}"
     pip3 install -r "$CVROOT/requirements.txt"
+    pip3 install -e "$CVROOT"
+fi
+
+# Check if chessvision package is installed
+echo -e "${YELLOW}Checking chessvision package installation...${NC}"
+python3 -c "import chessvision" 2>/dev/null
+if [ $? -ne 0 ]; then
+    echo -e "${YELLOW}Installing chessvision package...${NC}"
+    pip3 install -e "$CVROOT"
 fi
 
 # Display instructions
@@ -84,7 +94,11 @@ echo -e "${YELLOW}To run ChessVision, you need to start TWO servers in separate 
 echo ""
 echo -e "${GREEN}Terminal 1 - Compute Server (CV Algorithm):${NC}"
 echo -e "  cd $CVROOT/computeroot"
-echo -e "  python3 cv_endpoint.py --local"
+if [ -n "$DEMO_MODE" ]; then
+    echo -e "  python3 cv_endpoint.py --local --demo  ${RED}(DEMO mode - no image processing)${NC}"
+else
+    echo -e "  python3 cv_endpoint.py --local"
+fi
 echo ""
 echo -e "${GREEN}Terminal 2 - Web Server (Frontend):${NC}"
 echo -e "  cd $CVROOT/webroot"
@@ -103,16 +117,19 @@ read -r response
 
 if [[ "$response" =~ ^[Yy]$ ]]; then
     echo -e "${GREEN}Starting servers...${NC}"
+    if [ -n "$DEMO_MODE" ]; then
+        echo -e "${RED}Running in DEMO mode - image upload will not work${NC}"
+    fi
     echo -e "${YELLOW}Note: You can stop all servers by pressing Ctrl+C${NC}"
     echo ""
     
     # Start compute server in background
     cd "$CVROOT/computeroot"
-    python3 cv_endpoint.py --local &
+    python3 cv_endpoint.py --local $DEMO_MODE &
     CV_PID=$!
     
     # Wait a bit for compute server to start
-    sleep 3
+    sleep 5
     
     # Start web server in background
     cd "$CVROOT/webroot"
