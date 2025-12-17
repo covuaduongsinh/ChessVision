@@ -4,6 +4,48 @@
 
 This repository contains code and resources for extracting chess positions from images using computer vision.
 
+## 🚀 Quick Start (Bắt đầu nhanh)
+
+**For Vietnamese users / Dành cho người dùng Việt Nam:** See [QUICKSTART_VI.md](./QUICKSTART_VI.md) for detailed instructions in Vietnamese.
+
+### Step 1: Check Your Setup
+```bash
+python3 check_setup.py
+```
+
+### Step 2: Install Dependencies
+```bash
+pip3 install -r requirements.txt
+```
+
+### Step 3: Get Model Weights ⚠️ **REQUIRED**
+The application requires trained model weights to function. You need:
+- `weights/best_classifier.hdf5` - Square classifier model
+- `weights/best_extractor.hdf5` - Board extractor model
+
+**Options:**
+1. Train models yourself (see training section below)
+2. Use the newer [ChessVision-3LC](https://github.com/gudbrandtandberg/ChessVision-3LC) project
+3. Contact repository maintainer for pre-trained weights
+
+### Step 4: Run the Application
+```bash
+./run.sh
+```
+
+Or manually run both servers:
+```bash
+# Terminal 1 - Compute Server
+cd computeroot
+python3 cv_endpoint.py --local
+
+# Terminal 2 - Web Server  
+cd webroot
+python3 main.py --local server
+```
+
+Then visit: **http://localhost:5000**
+
 ## Try it
 
 The app is sometimes up and running, if you're lucky you can try it out at
